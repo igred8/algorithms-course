@@ -1,0 +1,11 @@
+{
+  "name": "algorithms-course",
+  "version": "1.0.0",
+  "description": "coding problems for the algorithms class on coursera",
+  "main": "test.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "ivan gadjev",
+  "license": "MIT"
+}
