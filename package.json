@@ -7,5 +7,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "ivan gadjev",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.10",
+    "jquery-csv": "^1.0.21",
+    "plotly.js-dist": "^2.8.1"
+  }
 }
