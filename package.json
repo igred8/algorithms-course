@@ -12,6 +12,7 @@
     "cheerio": "^1.0.0-rc.10",
     "csv": "^6.0.4",
     "jquery-csv": "^1.0.21",
+    "papaparse": "^5.3.1",
     "plotly.js-dist": "^2.8.1"
   }
 }

@@ -6,82 +6,51 @@ const jcsv = require('jquery-csv');
 const { performance } = require('perf_hooks');
 
 
-function removeEmpty(array) {
+function removeEmpty(array, emptytype='') {
     // remove empty elements
-    let posnull = array.indexOf('');
+    let posnull = array.indexOf(emptytype);
     
     while ( posnull >= 0 ) {
         array.splice(posnull,1);
-        posnull = array.indexOf('');
+        posnull = array.indexOf(emptytype);
         // console.log(posnull);
         
     }
     return array;
 }
 
-function makeGraph(data, graphformat) {
-
-    
-    if (graphformat === 'node-nodes') {
-        var graph = {};
-        for (let row of data) {
-            row = row.split('\t');
-            // console.log(row);
-            let vertex = parseInt(row[0]);
-            let edges = row.slice(1);
-            edges = removeEmpty(edges);
-            for (let [i,e] of edges.entries()) {
-        
-                edges[i] = parseInt(e);
-        
-            }
-            // console.log(`vertex = ${vertex}`);
-            // console.log(`edges = ${edges}`);
-            // console.log(edges);
-            graph[vertex] = edges;
-        }
-    } else if (graphformat === 'edges') {
-        var graph = new Map();
-
-        for (let row of data) {
-            row = row.split(' ');
-            let vertex = row[0];
-            let edge = row[1];
-            // console.log(Object.keys(graph));
-
-            // object keys are strings always
-            if (graph.has(vertex) ) {
-                // console.log('key exists');
-                graph.get(vertex).push(edge);
-            } else {
-                // console.log('key does not exist');
-                graph.set(vertex, [edge]);
-            }
-            
-        }
-    }
-
-    return graph;
-}
 
 exports.removeEmpty = removeEmpty;
-exports.makeGraph = makeGraph;
+
+
+class Node {
+
+    constructor(name) {
+        this.name = name;
+        this.explored = false;
+        this.edges = []; // outgoing node names
+    }
+
+
+
+}
 
 class Graph {
 
     constructor(graphtype) {
         this.graphtype = graphtype;
-        this.nodes = new Map(); // Map object is optimized for fast insert/delete. Object is slow.
+        this.graph = new Map(); // Map object is optimized for fast insert/delete. Object is slow.
+        this.regions = [];
     }
 
     addNode(vertex) {
-        this.nodes.set(vertex, []);
+        this.graph.set( vertex, new Node(vertex) );
     }
 
     addEdge(edge_start, edge_end) {
-        this.nodes.get(edge_start).push(edge_end);
+        this.graph.get(edge_start).edges.push(edge_end);
         if (this.graphtype === 'undirected') {
-            this.nodes.get(edge_end).push(edge_start);
+            this.graph.get(edge_end).edges.push(edge_start);
         }
     }
 
@@ -90,7 +59,7 @@ class Graph {
         // go through adjacency list and remove edges
         // if undirected, have to remove both directions
 
-        let node_adj_list = this.nodes.get(vertex);
+        let node_adj_list = this.graph.get(vertex);
 
         for (let edge_end of node_adj_list) {
             this.removeEdge(vertex, edge_end);
@@ -99,49 +68,92 @@ class Graph {
             }
         }
         // finally delete the node key
-        this.nodes.delete(vertex);
+        this.graph.delete(vertex);
     }
 
     removeEdge(edge_start, edge_end) {
         // remove the edge from the adjacency list of the start node
-        let indextemp = this.nodes.get(edge_start).indexOf(edge_end);
-        this.nodes.get(edge_start).splice(indextemp, 1);
+        let indextemp = this.graph.get(edge_start).indexOf(edge_end);
+        this.graph.get(edge_start).splice(indextemp, 1);
     }
 
 
-    makeGraph(data, graphformat, separator=' ') {
+    makeGraph(data, graphformat) {
         
         if (graphformat === 'edges') {
             // for each edge -> O(num edges)
             for (let row of data) {
 
-                row = row.split(separator);
                 let edge_start = row[0];
                 let edge_end = row[1];
                 
-                if (this.nodes.has(edge_start) ) {
+                if (this.graph.has(edge_start) ) {
                     // console.log('key exists');
-                    this.nodes.get(edge_start).push(edge_end);
+                    this.graph.get(edge_start).edges.push(edge_end);
                 } else {
                     // console.log('key does not exist');
-                    this.nodes.set(edge_start, [edge_end]);
+                    this.addNode(edge_start);
+                    this.graph.get(edge_start).edges.push(edge_end);
                 }
                 
+                // catch sink nodes
+                if (!this.graph.has(edge_end)){
+                    this.addNode(edge_end);
+                }    
             }
+
         } else if (graphformat === 'node-nodes') {
 
             for (let row of data) {
-                row = row.split(separator);
+
                 row = removeEmpty(row);
                 let edge_start = row[0];
                 let edges = row.slice(1);
-                this.nodes.set(edge_start, edges);
+                this.addNode(edge_start);
+                this.graph.get(edge_start).edges = edges;
             }
         }
 
     }
 
+    bfs(node_start) {
+        // breadth first search starting at node_start
+        this.graph.get(node_start).explored = true;
+        let nodelist = [ ...this.graph.get(node_start).edges ];
+        let connected = new Set();
+        connected.add(node_start);
+        let nocycle = true; // catch cycles 
+        while (nodelist.length > 0 && nocycle) {
+            let nodei = nodelist.shift(); // removes the first element
+            if (this.graph.get(nodei).explored) {
+                if (!connected.has(nodei)) {
+                    connected.add(nodei);
+                }
+                break;
+            } else {
+                this.graph.get(nodei).explored = true;
+                connected.add(nodei);
+                nodelist.push(...this.graph.get(nodei).edges);
+            }
+            
+        }
 
+        return connected;
+
+    }
+
+    bfsConnected() {
+        // find the connected regions of the graph with BFS
+         
+        for (let node of this.graph.keys() ) {
+            // do BFS starting with next unexplored node
+            if (!this.graph.get(node).explored) {
+                this.regions.push( this.bfs(node) );
+            }
+        }
+
+    }
 }
 
+exports.Node = Node;
 exports.Graph = Graph;
