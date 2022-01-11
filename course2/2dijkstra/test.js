@@ -1,9 +1,7 @@
 let t = [];
-let i = 0;
-for (i; i<10;i++){
-    t.push(i);
+for (let i=0; i<10; i++) {
+    t.push({'x':i-2, 'y':i**2});
+    // t.push([i, i**3]);
 }
 
-console.log(t.indexOf(99));
-console.log(t.splice(5,1));
-console.log(t);
+console.log(t.findIndex( (obj) => {return obj.x === 3; } ) );

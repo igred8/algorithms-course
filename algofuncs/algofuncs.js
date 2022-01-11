@@ -65,10 +65,11 @@ class Node {
     constructor(name) {
         this.name = name;
         this.explored = false;
-        this.distance = -1;
-        this.finishtime = -1;
-        this.scclabel = -1;
+        this.finishtime = -1; // finish time for topological sort
+        this.scclabel = -1; // label for strongly connected component
         this.edges = []; // outgoing node names
+        this.edgelen = new Map(); // lengths of outgoing edges
+        this.dscore = 1e9; // dijkstra score
     }
 
 }
@@ -176,6 +177,24 @@ class Graph {
                 this.addNode(edge_start);
                 this.graph.get(edge_start).edges = edges;
             }
+        } else if (graphformat === 'edge-length') {
+            for (let row of data) {
+
+                let node = row[0];
+                this.addNode(this.graph, node);
+
+                for (let tupstr of row.slice(1)) {
+                    let el = tupstr.split(',');
+                    let e = parseInt(el[0]);
+                    let l = parseInt(el[1]);
+                    this.graph.get(node).edgelen.set(e, l);
+                    
+                    // catch sink nodes
+                    if (!this.graph.has(e)){
+                        this.addNode(this.graph, e);
+                    }
+                }
+            }
         }
 
     }
@@ -184,7 +203,9 @@ class Graph {
         // reset the graph to unexplored
         for (let node of graph.keys() ) {
             graph.get(node).explored = false;
-            graph.get(node).distance = -1;
+            graph.get(node).finishtime = -1; // finish time for topological sort
+            graph.get(node).scclabel = -1; // label for strongly connected component
+            graph.get(node).dscore = 1e9; // dijkstra score
 
         }
     }
@@ -463,14 +484,116 @@ class Graph {
         this.sccsizelist = sccsizelist;
     }
 
+    dijkstra(graph, node_start, node_end, options) {
+        // naive implementation of Dijkstra's algorithm (no heaps)
+
+        function dScore(nodecurrent, nodenext) {
+            return graph.get(nodecurrent).dscore + graph.get(nodecurrent).edgelen.get(nodenext);
+        }
+
+        // let nodepath = new Set([node_start]); // init explored set
+        let explorednodes = [node_start]; // init explored set
+        graph.get(node_start).dscore = 0; // set dscore for start node
+        
+
+        // keep track of edges in explored
+        let outedges = [];
+        
+        let nodecurrent = node_start;
+        
+        let witer = 0;
+
+        let mindscore = 1e9;
+        let minedge = null;
+
+        while (true) {
+            
+            
+            if (options.debugmsg){
+                console.log(`=====\nwhile loop at node: ${nodecurrent}`);
+            }
+            
+            // for each edge of nodecurrent check dscore and selct min as next node
+            for (let [edge,len] of graph.get(nodecurrent).edgelen) {
+                
+                let dscoretemp = dScore(nodecurrent, edge);
+                if (dscoretemp < graph.get(edge).dscore) {
+                    graph.get(edge).dscore = dscoretemp; // update dscore for reachable nodes
+                    outedges.push([nodecurrent, edge]);
+                }
+                
+                if (options.debugmsg){
+                    console.log(`for loop at edge: ${edge}`);
+                }
+
+                
+            }
+            
+            mindscore = 1e9; // needs reset on every while iteration
+            let minnode = null;
+            for (let [n,e] of outedges) {
+
+                if ( graph.get(e).dscore < mindscore && !explorednodes.includes(e) ) {
+                    mindscore = graph.get(e).dscore;
+                    minedge = e;
+                    minnode = n;
+
+                    if (options.debugmsg) {
+                        console.log({minnode, minedge, mindscore});
+                    }
+                }
+            }
+
+            // add min dscore edge to explored
+            explorednodes.push(minedge);
+            
+            // let i = outedges.findIndex( (x) => { x.edge === minedge } );
+            if ( options.debugmsg ) {
+                // console.log(`min d-score = ${mindscore}`);
+                console.log('outward edges:');
+                console.log(outedges);
+            }
+
+            let mini = outedges.findIndex( (x) => {return (x[0] === minnode && x[1] === minedge)});
+            
+            outedges.splice(mini, 1); // remove the edge with min dscore from outward edges list
+            
+            // make minedge the current node
+            nodecurrent = minedge;
+
+            if (options.debugmsg) {
+                
+                console.log(`mini = ${mini}`);
+                console.log({minedge, mindscore});
+                // console.log('explored nodes:');
+                // console.log(explorednodes);
+                console.log('outward edges:');
+                console.log(outedges);
+
+            }
+            witer++
+            // end while loop
+            if (nodecurrent === node_end) { break };
+            if (outedges.size >= graph.size) { break };
+            if (mindscore === 1e9) { break };
+
+            // if (witer === 3) { break };
+
+
+        }
+        return explorednodes;
+    }
 
 }
+
+
+
 
 class Heap {
     // heap structure 
     constructor() {
         this.array = [];
-        
+
     }
 }
 
