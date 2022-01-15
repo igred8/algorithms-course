@@ -427,6 +427,9 @@ class Graph {
     async kosarajuSCC(options) {
         // find the strongly connected components using DFS and topological sort
         // assumes this.graph and this.graphReverse are valid directed graphs
+
+        options = checkDefaultOptions(options, this.defaultOptions);
+
         if (options.debugmsg) {
             console.log(`hi, this is kosarajuSCC()`)
         }
@@ -486,6 +489,8 @@ class Graph {
 
     dijkstra(graph, node_start, node_end, options) {
         // naive implementation of Dijkstra's algorithm (no heaps)
+
+        options = checkDefaultOptions(options, this.defaultOptions);
 
         function dScore(nodecurrent, nodenext) {
             return graph.get(nodecurrent).dscore + graph.get(nodecurrent).edgelen.get(nodenext);
@@ -591,11 +596,142 @@ class Graph {
 
 class Heap {
     // heap structure 
-    constructor() {
+    constructor(method='min') {
         this.array = [];
+        this.size = 0; // length of the heap array
+        this.method = method;
+        this.defaultOptions = {  'debugmsg': false
+                                ,'debugiter': 1e8
+                                };
+    }
 
+    add(val, options) {
+
+        options = checkDefaultOptions(options, this.defaultOptions);
+
+        // push value
+        this.array.push(val);
+        this.size = this.array.length;
+        let childindex = this.size - 1;
+        
+        let valcheck = null; // init valcheck to switch min/max method
+        
+        // heapify up
+        while (childindex > 0) {
+            
+            let parentindex = Math.floor((childindex - 1) / 2);
+            let parentval = this.array[parentindex];
+            
+            if (options.debugmsg) {
+                console.log({parentindex, childindex});
+                console.log({parentval, val});
+            }
+            
+            if (this.method === 'min') {
+                valcheck = (parentval > val);
+            } else if (this.method === 'max') {
+                valcheck = (parentval < val);
+            } else {
+                console.log('ERROR! Invalid heap method. Must be one of: ["min", "max"]. ');
+                break;
+            }
+
+            if (valcheck) {
+                // swap
+                this.array[parentindex] = val;
+                this.array[childindex] = parentval;
+                // update childindex
+                childindex = parentindex;
+            } else {
+                break;
+            }
+        }
+    }
+
+    heapify(array, options) {
+        // make a heap out of an array 
+        options = checkDefaultOptions(options, this.defaultOptions);
+
+        for (let val of array) {
+            this.add(val, options);
+        }
+    }
+
+    extract(options) {
+        // extract the root (min or max) and redistribute tree/array to maintain heap
+        let extractval = this.array[0];
+        let endval = this.array.pop();
+        this.size = this.array.length;
+        this.array[0] = endval;
+        let parentindex = 0;
+
+        let childindex = null;
+        let childval = null;
+
+        // heapify down
+        while (true) {
+            // compare the children values
+            let c1index = 2*parentindex + 1;
+            let c2index = 2*(parentindex + 1);
+            // console.log({c1index, c2index});
+            if (c1index >= this.size) {
+                // only one key in heap. nothing to do.
+                break;
+            } 
+
+            if (this.method === 'min') {
+                // decide which child to compare to 
+                if (this.array[c1index] < this.array[c2index] || c2index >= this.size) {
+                    childindex = c1index;
+                    childval = this.array[c1index];
+                } else {
+                    childindex = c2index;
+                    childval = this.array[c2index];
+                }
+
+                if (childval < endval) {
+                    // swap 
+                    this.array[childindex] = endval;
+                    this.array[parentindex] = childval;
+                    parentindex = childindex;
+                    
+                } else {
+                    break;
+                }
+
+            } else if (this.method === 'max') {
+                // max child bubble up
+                // decide which child to compare to 
+                if (this.array[c1index] > this.array[c2index] || c2index >= this.size) {
+                    
+                    childindex = c1index;
+                    childval = this.array[c1index];
+                } else {
+                    childindex = c2index;
+                    childval = this.array[c2index];
+                }
+
+                if (childval > endval) {
+                    // swap 
+                    this.array[childindex] = endval;
+                    this.array[parentindex] = childval;
+                    parentindex = childindex;
+                    
+                } else {
+                    break;
+                }
+            }
+
+
+        }
+        return extractval;
+    }
+
+    rootval(options) {
+        return this.array[0];
     }
 }
 
 exports.Node = Node;
 exports.Graph = Graph;
+exports.Heap = Heap;

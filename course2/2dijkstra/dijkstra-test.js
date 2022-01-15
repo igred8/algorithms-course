@@ -1,5 +1,4 @@
 // load csv into array
-const { reverse } = require('dns');
 const fs = require('fs');
 // const cheerio = require('cheerio');
 // const jcsv = require('jquery-csv');
