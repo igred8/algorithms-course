@@ -74,6 +74,14 @@ class Node {
 
 }
 
+class Edge {
+    constructor(start, end, cost) {
+        this.start = start;
+        this.end = end;
+        this.cost = cost;
+    }
+}
+
 class Graph {
 
     constructor(graphtype) {
@@ -91,11 +99,13 @@ class Graph {
         graph.set( vertex, new Node(vertex) );
     }
 
-    addEdge(graph, edge_start, edge_end) {
+    addEdge(graph, edge_start, edge_end, edge_length) {
         graph.get(edge_start).edges.push(edge_end);
+        graph.get(edge_start).edgelen.set(edge_end, edge_length);
         if (this.graphtype === 'undirected') {
             if (!this.graph.get(edge_end).edges.includes(edge_start)) {
                 graph.get(edge_end).edges.push(edge_start);
+                graph.get(edge_end).edgelen.set(edge_start, edge_length);
             }
         }
     }
@@ -194,6 +204,20 @@ class Graph {
                         this.addNode(this.graph, e);
                     }
                 }
+            }
+        } else if (graphformat === 'edge-len-undir') {
+            // this.graphtype = 'undirected';
+            for (let row of data) {
+                let [node_start, node_end, edge_len] = row;
+                // console.log({node_start, node_end, edge_len});
+                if (!this.graph.has(node_start)) {
+                    this.addNode(this.graph, node_start);
+                }
+                if (!this.graph.has(node_end)) {
+                    this.addNode(this.graph, node_end);
+                }
+                this.addEdge(this.graph, node_start, node_end, edge_len);
+
             }
         }
 
@@ -727,11 +751,166 @@ class Heap {
         return extractval;
     }
 
-    rootval(options) {
+    rootval() {
+        return this.array[0];
+    }
+}
+
+class HeapPriority {
+    // heap structure using a given property as comparison
+    constructor(compareprop, method='min') {
+        this.array = [];
+        this.size = 0; // length of the heap array
+        this.compareprop = compareprop; // the property of the objects to use for comparison
+        this.method = method;
+        this.defaultOptions = {  'debugmsg': false
+                                ,'debugiter': 1e8
+                                };
+    }
+
+    add(obj, options) {
+
+        options = checkDefaultOptions(options, this.defaultOptions);
+
+        // push value
+        this.array.push(obj);
+        this.size = this.array.length;
+        let childindex = this.size - 1;
+        
+        let valcheck = null; // init valcheck to switch min/max method
+        
+        // heapify up
+        while (childindex > 0) {
+            
+            let parentindex = Math.floor((childindex - 1) / 2);
+            let parentobj = this.array[parentindex];
+            
+            if (options.debugmsg) {
+                console.log({parentindex, childindex});
+                console.log({parentobj, obj});
+            }
+            
+            if (this.method === 'min') {
+                valcheck = (parentobj[this.compareprop] > obj[this.compareprop]);
+            } else if (this.method === 'max') {
+                valcheck = (parentobj[this.compareprop] < obj[this.compareprop]);
+            } else {
+                console.log('ERROR! Invalid heap method. Must be one of: ["min", "max"]. ');
+                break;
+            }
+
+            if (valcheck) {
+                // swap
+                this.array[parentindex] = obj;
+                this.array[childindex] = parentobj;
+                // update childindex
+                childindex = parentindex;
+            } else {
+                break;
+            }
+        }
+    }
+
+    heapify(array, options) {
+        // make a heap out of an array 
+        options = checkDefaultOptions(options, this.defaultOptions);
+
+        for (let obj of array) {
+            this.add(obj, options);
+        }
+    }
+
+    extract(options) {
+        options = checkDefaultOptions(options, this.defaultOptions);
+
+        // extract the root (min or max) and redistribute tree/array to maintain heap
+        let extractobj = this.array[0];
+        let endobj = this.array.pop();
+        this.size = this.array.length;
+        if (this.size === 0) { 
+            return extractobj;
+        }
+        this.array[0] = endobj;
+        let parentindex = 0;
+
+        let childindex = null;
+        let childobj = null;
+
+        // heapify down
+        while (true) {
+            // compare the children values
+            let c1index = 2*parentindex + 1;
+            let c2index = 2*(parentindex + 1);
+            // console.log({c1index, c2index});
+            if (c1index >= this.size) {
+                // only one key in heap. nothing to do.
+                break;
+            } 
+
+            let c1obj = this.array[c1index];
+            let c2obj = this.array[c2index];
+            if (options.debugmsg) {
+                console.log(this.size);
+                console.log({c1index, c2index});
+                console.log({c1obj, c2obj});
+            }
+
+            if (this.method === 'min') {
+                // decide which child to compare to 
+                // note order of truth statements otherwise errors since c2obj can be undef
+                if ( c2index >= this.size || c1obj[this.compareprop] < c2obj[this.compareprop]) {
+                    childindex = c1index;
+                    childobj = c1obj;
+                } else {
+                    childindex = c2index;
+                    childobj = c2obj;
+                }
+
+                if (childobj[this.compareprop] < endobj[this.compareprop]) {
+                    // swap 
+                    this.array[childindex] = endobj;
+                    this.array[parentindex] = childobj;
+                    parentindex = childindex;
+                    
+                } else {
+                    break;
+                }
+
+            } else if (this.method === 'max') {
+                // max child bubble up
+                // decide which child to compare to 
+                // note order of truth statements otherwise errors since c2obj can be undef
+                if ( c2index >= this.size || c1obj[this.compareprop] > c2obj[this.compareprop] ) {
+                    childindex = c1index;
+                    childobj = c1obj;
+                } else {
+                    childindex = c2index;
+                    childobj = c2obj;
+                }
+
+                if (childobj[this.compareprop] > endobj[this.compareprop]) {
+                    // swap 
+                    this.array[childindex] = endobj;
+                    this.array[parentindex] = childobj;
+                    parentindex = childindex;
+                    
+                } else {
+                    break;
+                }
+            }
+
+
+        }
+        return extractobj;
+    }
+
+    rootobj() {
         return this.array[0];
     }
 }
 
 exports.Node = Node;
+exports.Edge = Edge;
 exports.Graph = Graph;
 exports.Heap = Heap;
+exports.HeapPriority = HeapPriority;
