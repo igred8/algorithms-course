@@ -64,6 +64,7 @@ function intervalSchedule_difference(nreqs, reqs) {
     }
     function comparefunc(a,b) {
         if (a[2] === b[2]) {
+            // if equal length, sort by starting time
             return b[0] - a[0];
         }
         return b[2] - a[2];

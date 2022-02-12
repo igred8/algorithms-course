@@ -70,12 +70,14 @@ class Node {
         this.edges = []; // outgoing node names
         this.edgelen = new Map(); // lengths of outgoing edges
         this.dscore = 1e9; // dijkstra score
+        this.bitname = null;
     }
 
 }
 
 class Edge {
-    constructor(start, end, cost) {
+    constructor(start, end, cost, name='none') {
+        this.name = name;
         this.start = start;
         this.end = end;
         this.cost = cost;
@@ -217,6 +219,14 @@ class Graph {
                     this.addNode(this.graph, node_end);
                 }
                 this.addEdge(this.graph, node_start, node_end, edge_len);
+
+            }
+        } else if (graphformat === 'node-undir') {
+            for (let [i,row] of data.entries()) {
+                let node = new Node(i);
+                node.bitname = row;
+                // this.addNode(this.graph, node);
+                this.graph.set( i, node );
 
             }
         }
@@ -909,8 +919,98 @@ class HeapPriority {
     }
 }
 
+class _NodeUF {
+    // private class to be used with UnionFind
+    constructor(name, parent, obj) {
+        this.name = name;
+        this.parent = parent;
+        this.size = 1; // how many nodes connect to this node including itself
+        this.object = obj;
+    }
+}
+
+class UnionFind {
+
+    constructor() {
+        this.objmap = new Map(); // hashtable of objects
+        this.parents = new Set(); // all parents, updated in find and union
+
+    }
+
+    make(objarray, nameprop='none') {
+
+        try {
+            // try to infer the name property of the objects in the array
+            if (nameprop === 'none'){
+                nameprop = Object.getOwnPropertyNames(objarray[0])[0];
+            }
+        } catch (err) {
+            console.error(err);
+        }
+
+        for (let obj of objarray) {
+            this.objmap.set(obj[nameprop], new _NodeUF(obj[nameprop], obj[nameprop], obj ));
+            this.parents.add(obj[nameprop]);
+        }
+    }
+
+    find(name) {
+        // find the group to which name belongs to
+        let groupname = null;
+        let nodescontract = new Set();
+        let stopwhile = 0;
+        while (true && (stopwhile < this.objmap.size)) {
+
+            if (this.objmap.get(name).name === this.objmap.get(name).parent) {
+                groupname = this.objmap.get(name).name;
+                // console.log('reached self-referential parent')
+                break;
+            } else {
+                // nodes to be contracted
+                nodescontract.add(name);
+
+            }
+            name = this.objmap.get(name).parent;
+            stopwhile++;
+        }
+
+        // path contraction
+        for (let leaf of nodescontract) {
+            this.objmap.get(leaf).parent = groupname;
+            this.parents.delete(leaf); // delete this leaf from parents set
+        }
+        
+        return groupname;
+    }
+
+    union(name1, name2) {
+        // unify the groups containing name1 and name2
+        let gsmall = this.find(name1);
+        let gbig = this.find(name2);
+
+        if (gsmall !== gbig) {
+            if (this.objmap.get(gsmall).size > this.objmap.get(gbig).size) {
+                // rename
+                gsmall = this.find(name2);
+                gbig = this.find(name1);              
+            }
+            // make smaller size group be child to bigger
+            this.objmap.get(gsmall).parent = gbig;
+            // update size of bigger group
+            this.objmap.get(gbig).size += this.objmap.get(gsmall).size;
+            // delete gsmall from parents list
+            this.parents.delete(gsmall);
+            return 1;
+        }
+
+        return 0;
+    }
+
+}
+
 exports.Node = Node;
 exports.Edge = Edge;
 exports.Graph = Graph;
 exports.Heap = Heap;
 exports.HeapPriority = HeapPriority;
+exports.UnionFind = UnionFind;
