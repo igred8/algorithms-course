@@ -71,6 +71,7 @@ class Node {
         this.edgelen = new Map(); // lengths of outgoing edges
         this.dscore = 1e9; // dijkstra score
         this.bitname = null;
+        this.freq = null; // 
     }
 
 }
@@ -1008,9 +1009,18 @@ class UnionFind {
 
 }
 
+class BinaryTree {
+
+    constructor() {
+        this.objmap = new Map(); // hashtable of objects
+        this.parents = new Set(); // all parents, updated in find and union
+    }
+}
+
 exports.Node = Node;
 exports.Edge = Edge;
 exports.Graph = Graph;
 exports.Heap = Heap;
 exports.HeapPriority = HeapPriority;
 exports.UnionFind = UnionFind;
+exports.BinaryTree = BinaryTree;

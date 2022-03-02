@@ -16,7 +16,7 @@ function readParseGraph(filepath, dataendrow = 1000, endlinechar = '\r\n', delim
     let t1 = performance.now();
     let datastr = fs.readFileSync(filepath, 'utf8');
     let t2 = performance.now();
-    console.log(`fs.readFileSync took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
+    // console.log(`fs.readFileSync took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
     // console.log(datastr);
 
     // parse data string to array and time
@@ -26,60 +26,83 @@ function readParseGraph(filepath, dataendrow = 1000, endlinechar = '\r\n', delim
     let nnodes = parseInt(header[0]);
     let nbits = parseInt(header[1]);
     // console.log(datastrarr[0]);
-    console.log({nnodes,nbits});
+    // console.log({nnodes,nbits});
 
     // parse data string to array and time
     t1 = performance.now();
     let dataarray = [];
     for (let row of datastrarr.slice(1)) {
         let rtemp = row.replaceAll(' ','');
-        dataarray.push(parseInt(rtemp,2));
+        // console.log(typeof(rtemp));
+        // console.log(rtemp === '');
+        // console.log(typeof(rtemp));
+        // catch empty rows
+        if (rtemp !== '') {
+            rtemp = parseInt(rtemp,2);
+            dataarray.push(rtemp);
+        }
+
     }
+
     
     t2 = performance.now();
     // console.log(data);
-    console.log(`csv parser took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
+    // console.log(`csv parser took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
 
     // for (let row of dataarray) {
-    //     af.removeEmpty(row, '');
-    //     af.removeEmpty(row, ' ');
+    //     console.log(row);
+    //     // af.removeEmpty(row, '');
+    //     // af.removeEmpty(row, ' ');
+    //     af.removeEmpty(row, NaN);
     // }
 
-    // console.log(dataarray.slice(0,11));
+    // console.log(dataarray.slice(0));
     
     // make graph and graph reversed
     t1 = performance.now();
-    let g = new af.Graph('undirected');
+    // let g = new af.Graph('undirected');
 
-    g.makeGraph( Object.values(dataarray.slice(0,dataendrow))
-                , 'node-undir'
-                );
-    
+    // g.makeGraph( Object.values(dataarray.slice(0,dataendrow))
+    //             , 'node-undir'
+    //             );
+    let nodelist = [];
+    for (let [i,b] of dataarray.entries()) {
+        let n = new af.Node(i);
+        n.bitname = b;
+        nodelist.push( n );
+    }
 
     t2 = performance.now();
-    console.log(`makeGraph took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
+    // console.log(`nodelist took: ${(1e-3 * (t2-t1)).toFixed(3)} s`);
 
-    return [g, dataarray];
+    return [nodelist, dataarray];
 
 }
 
 
-let runtype = 'test-single';
+// let runtype = 'test-single';
 // let runtype = 'full-graph';
+let runtype = 'testcases';
 // let runtype = 'skip';
 
 
 
 if (runtype === 'test-single') {
 
+    // let fp = 'E:/Dropbox/algorithms-course/course3/2union-find/clusteringDATA2-test01.txt';
     let fp = 'E:/Dropbox/algorithms-course/course3/2union-find/clusteringDATA2-test02.txt';
     
-    [g,data] = readParseGraph(fp, 1e6, '\r\n');
+    [nodelist, data] = readParseGraph(fp, 1e6, '\r\n');
 
 } else if (runtype === 'full-graph') {
     let fp = 'E:/Dropbox/algorithms-course/course3/2union-find/clusteringDATA2.txt';
-    [g,data] = readParseGraph(fp, 5.2e6, '\n');
+    [nodelist, data] = readParseGraph(fp, 5.2e6, '\n');
 
+} else if (runtype === 'testcases') {
+    var testcases_path = 'E:/Dropbox/algorithms-course/testCases/course3/assignment2Clustering/question2';
+    var testfiles = fs.readdirSync(testcases_path);
+    var infiles = testfiles.filter( fn => fn.includes('input') );
+    var outfiles = testfiles.filter( fn => fn.includes('output') );
 }
 
 
@@ -94,41 +117,120 @@ function hamming_distance(a, b) {
     return d;
 }
 
-function hamming_distance0(a, b) {
-    let a0 = hamming_distance(0,a);
-    let b0 = hamming_distance(0,b);
-    return a0 - b0;
-}
-
 // console.log(data);
-let a = data[0];
-let b = data[1];
-console.log(a.toString(2));
-console.log(b.toString(2));
-let hd = hamming_distance(a, b);
-console.log(hd);
+// let a = data[0];
+// let b = data[1];
+// console.log(a.toString(2));
+// console.log(b.toString(2));
+// let hd = hamming_distance(a, b);
+// console.log(hd);
 
-console.log(g);
+// console.log(nodelist);
 
 
-function cluster_hamming(data, spacing, debugmsg) {
+function cluster_hamming(nodelist, spacing, debugmsg, timemsg) {
     // what is the maximum number of clusters that the spacing between clusters > spacing?
     if (debugmsg) {
-        console.log('data:')
-        console.log(data);
+        console.log('nodelist:')
+        console.log(nodelist);
     }
+
+    // sort by bitname
+    nodelist.sort( (a,b) => {
+            hamming_distance(0,a.bitname) - hamming_distance(0,b.bitname) 
+        } 
+    );
+
     // make a UnionFind of nodes
     let nodeuf = new af.UnionFind();
-    let nodelist = [];
-    for (let n of data) {
-        nodelist.push(n[1]);
-    }
     nodeuf.make(nodelist, 'name');
     
     if (debugmsg) {
+        console.log(nodelist);
         console.log(nodeuf);
     }
-    for (let [i,bini] of nodelist.entries()) {
+    let ti = performance.now();
+    for (let [i, nodei] of nodelist.entries()) {
+        
+        let t1 = performance.now();
+        for (let nodej of nodelist.slice(i)) {
+            if (hamming_distance(nodei.bitname, nodej.bitname) < spacing) {
+                let unionmade = nodeuf.union(nodei.name, nodej.name);
+                // if (unionmade) {
+                //     break;
+                // }
+            }
+            
+        }
+        let t2 = performance.now();
+        if (timemsg){
+            if (i%1e4 === 0) {
+                console.log(`nodei = ${i}`);
+                console.log(`j for loop took: ${(1e-3 * (t2-t1)).toFixed(3)} sec`);
+                console.log(`total time elapsed: ${(1e-3 * (t2-ti)).toFixed(3)} sec`);
+            }
+        }
 
     }
+
+    if (debugmsg) {
+        console.log(nodeuf);
+    }
+    return nodeuf;
+}
+
+
+function test_single_case(infiles, outfiles, fncontains, fnnumber, testcasespath, elc='\n') {
+    // fncontains is a string to which the fnnumber is attached to identify the file
+    let infn = infiles.filter( fn => fn.includes(`${fncontains}_${fnnumber}_`) )[0];
+    let outfn = outfiles.filter( fn => fn.includes(`${fncontains}_${fnnumber}_`) )[0];
+    // console.log({infn});
+    // console.log({outfn});
+    // read input file
+    let fp = `${testcasespath}\\${infn}`
+    let [nodelist, data] = readParseGraph(fp, 5.2e6, elc);
+    
+    // run algorithm
+    let nodeuf = cluster_hamming(nodelist, 3, false, false);
+    
+    let kclusters = nodeuf.parents.size;
+    // console.log(nodeuf);
+    
+    // read output
+    fp = `${testcasespath}\\${outfn}`
+    let output = fs.readFileSync(fp, 'utf8');
+    // parse data string to array and time
+    let outstr = output.split(elc);
+    let expectedoutput = parseInt(outstr[0]);
+    
+    if (kclusters === expectedoutput){
+        // console.log(`test ${fnnumber} PASS`);
+        return 1;
+    } else {
+        console.log(`test ${fnnumber} FAIL`);
+
+        console.log(`number of clusters = ${kclusters}`);
+        console.log(`expected output: ${expectedoutput}`);
+        // console.log({infn});
+        // console.log({outfn});
+        
+        return 0;
+    }
+}
+
+// test_single_case(infiles,outfiles,'random', 80, testcases_path);
+
+if (runtype === 'testcases') {
+    let ntests = 70
+    let nfails = 0;
+
+    for (let i=1;i<ntests; i++){
+        let passtest = test_single_case(infiles,outfiles,'random', i, testcases_path);
+        if (!passtest) { nfails++; }
+    }
+    console.log(`failed ${nfails} of ${ntests}`)
+} else if (runtype === 'full-graph') {
+    let nodeuf = cluster_hamming(nodelist, 3, false,true);
+    // console.log(nodeuf.parents);
+    console.log(`number of clusters = ${nodeuf.parents.size}`);
 }
