@@ -1009,12 +1009,29 @@ class UnionFind {
 
 }
 
+class _NodeBT {
+    constructor(name) {
+        this.name = name;
+        this.value = null;
+        this.left = null;
+        this.right = null;
+    }
+}
+
 class BinaryTree {
 
-    constructor() {
-        this.objmap = new Map(); // hashtable of objects
-        this.parents = new Set(); // all parents, updated in find and union
+    constructor(rootnode) {
+        this.root = rootnode.name;
+        this.nodes = new Set(rootnode); // set of _NodeBT objects
     }
+
+    find(node) {
+        let found = false;
+        while (!found) {
+            
+        }
+    }
+
 }
 
 exports.Node = Node;
